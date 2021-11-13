@@ -4,6 +4,7 @@ precision mediump float;
 attribute vec3 vertPosition;
 attribute vec2 vertUV;
 varying vec2 fragTexCoord;
+varying vec3 pos;
 uniform mat4 mWorld;
 uniform mat4 mView;
 uniform mat4 mProj;
@@ -11,22 +12,42 @@ uniform mat4 mProj;
 void main() { 
 	fragTexCoord = vertUV;
 	gl_Position = mProj * mView * mWorld * vec4(vertPosition, 1.0);
+	pos = gl_Position.xyz;
 }`;
 
 var fs1Text = `
 precision mediump float;
 
 varying vec2 fragTexCoord;
+varying vec3 pos;
 uniform sampler2D sampler;
+uniform float time;
 
 void main() {
-	gl_FragColor = texture2D(sampler, fragTexCoord);
+	//gl_FragColor = texture2D(sampler, fragTexCoord);
+	gl_FragColor = vec4(fragTexCoord + sin(pos.y + time) - cos(pos.x + fragTexCoord.y), 0.0, 1.0);
 }`;
 
-var vs1DummyText = `
+var vs1UVText = `
+precision mediump float;
+
 attribute vec2 vertPos;
+
+varying vec2 UV;
 void main() {
+	UV = vertPos;
 	gl_Position = vec4(vertPos,0.0,1.0);
+}
+`;
+
+fv1FBOTestText = `
+precision mediump float;
+
+uniform float time;
+uniform vec2 resolution;
+varying vec2 UV;
+void main() {
+	gl_FragColor = vec4( abs(UV), fract(time), 1.0);
 }
 `;
 
@@ -178,14 +199,15 @@ var Init = function () {
 	};
 	
 	//setups
-	gl.enable(gl.DEPTH_TEST);
-	gl.enable(gl.CULL_FACE);
-	gl.cullFace(gl.BACK);
-	gl.frontFace(gl.CCW);
+	//gl.enable(gl.DEPTH_TEST);
+	//gl.enable(gl.CULL_FACE);
+	//gl.cullFace(gl.BACK);
+	//gl.frontFace(gl.CCW);
 	
 	//shader prep
 	var program = gl.createProgram();
-	var ShdGrpT = [vs1Text,fs1Text];
+	//var ShdGrpT = [vs1Text,fs1Text];
+	var ShdGrpT = [vs1UVText,fv1FBOTestText];
 	var ShdGrp = [gl.createShader(gl.VERTEX_SHADER),gl.createShader(gl.FRAGMENT_SHADER)];
 	ShdGrp.forEach( function(e, i) {
 		gl.shaderSource(e, ShdGrpT[i]);
@@ -210,13 +232,6 @@ var Init = function () {
 	//
 	// BUFFERS
 	//
-	
-	var triangleVerticies = new Float32Array(
-	[ // X, Y,       R, G, B
-		0.0, 0.5,  0.0,  1.0, 0.0, 0.0,
-		-0.5, -0.5,0.0,  0.0, 1.0, 0.0,
-		0.5, -0.5, 0.0,  0.0, 0.0, 1.0
-	]);
 	
 	var cubeVerts = new Float32Array(
 	[ // X, Y,       R, G, B
@@ -283,24 +298,13 @@ var Init = function () {
 		21, 20, 22,
 		22, 20, 23
 	]);
-	
-	var filler = new Float32Array([
-        -1.0, -1.0,
-        -1.0,  1.0,
-         1.0, -1.0,
-         1.0,  1.0
-    ]);
-	
-	//var triangleVertextBufferObject = gl.createBuffer();
-	//gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertextBufferObject);
-	//gl.bufferData(gl.ARRAY_BUFFER, triangleVerticies, gl.STATIC_DRAW);
-	
+	/*
 	var cubeVertexBufferObject = gl.createBuffer();
 	gl.bindBuffer(gl.ARRAY_BUFFER, cubeVertexBufferObject);
 	gl.bufferData(gl.ARRAY_BUFFER, cubeVerts, gl.STATIC_DRAW);
 	
-	var cubeindexBufferObject = gl.createBuffer();
-	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cubeindexBufferObject);
+	var cubeIndexBufferObject = gl.createBuffer();
+	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cubeIndexBufferObject);
 	gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, cubeInd, gl.STATIC_DRAW);
 	
 	//attributes
@@ -324,6 +328,36 @@ var Init = function () {
 	);
 	gl.enableVertexAttribArray(positionAttribLocation);
 	gl.enableVertexAttribArray(texCoordAttribLocation);
+	*/
+	var filler = new Float32Array([
+        -1, -1,
+         1, -1,
+        -1,  1,
+         1,  1
+    ]);
+	
+	var fillerind = new Uint16Array([
+		0, 1, 2, 3, 2, 1
+	]);
+	
+	var UVVertBuffObj = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, UVVertBuffObj);
+	gl.bufferData(gl.ARRAY_BUFFER, filler, gl.STATIC_DRAW);
+	
+	var UVIndBuffObj = gl.createBuffer();
+	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, UVIndBuffObj);
+	gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, fillerind, gl.STATIC_DRAW);
+	
+	var positionAttribLocation = gl.getAttribLocation(program, 'vertPos');
+	gl.vertexAttribPointer(
+		positionAttribLocation, // Attrib loacation
+		2, // Number of elements per attribute
+		gl.FLOAT, // Type of elements
+		gl.FALSE,
+		2 * Float32Array.BYTES_PER_ELEMENT, // Size of an individual vertex
+		0 // Offest from the beginning of a single vertex to this attribute
+	);
+	gl.enableVertexAttribArray(positionAttribLocation);
 	
 	//voxel parameters
 	// diffuse rgb, refraction a, reflectivity, roughness/gloss, emissive
@@ -355,6 +389,8 @@ var Init = function () {
 	var matWorldUniformLocation = gl.getUniformLocation(program, 'mWorld');
 	var matViewUniformLocation =  gl.getUniformLocation(program, 'mView');
 	var matProjUniformLocation =  gl.getUniformLocation(program, 'mProj');
+	var rtime =                   gl.getUniformLocation(program, 'time');
+	var resolution =              gl.getUniformLocation(program, 'resolution');
 	
 	var identityMatrix = new Float32Array(16);
 	mat4.identity(identityMatrix);
@@ -376,7 +412,7 @@ var Init = function () {
 	var xRotMat = new Float32Array(16);
 	var yRotMat = new Float32Array(16);
 	var angle = 0;
-	//var loopi = 0; // global frame counter for keyboard wtf
+	//var ftime = 0; // global frame counter for shaders
 	var ControlEvents = [];
 	var binds = {
 		fma: [87, 38],
@@ -430,6 +466,8 @@ var Init = function () {
 		mat4.rotate(xRotMat, identityMatrix, angle * 0.25, [1, 0, 0]);
 		mat4.mul(worldMatrix, yRotMat, xRotMat);
 		gl.uniformMatrix4fv(matWorldUniformLocation, gl.FALSE, worldMatrix);
+		gl.uniform2f(resolution, window_s.x, window_s.y);
+		gl.uniform1f(rtime, performance.now() * 0.001);
 		
 		//clear color
 		gl.clearColor(0.5,0.5,0.5,1.0);
@@ -437,7 +475,7 @@ var Init = function () {
 		
 		//gl.bindTexture(gl.TEXTURE_2D, stoneTexture);
 		//gl.activeTexture(gl.TEXTURE0);
-		gl.drawElements(gl.TRIANGLES, cubeInd.length, gl.UNSIGNED_SHORT, 0);
+		gl.drawElements(gl.TRIANGLES, fillerind.length, gl.UNSIGNED_SHORT, 0);
 		
 		//gl.drawArrays(gl.TRIANGLES, 0, 3);
 		//loopi = loopi + 1;
