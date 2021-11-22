@@ -96,55 +96,47 @@ var IndexOfData = function (array, data) { // IndexOf object usage doesnt allow 
 	return r;
 }
 
-var getKeyPressedState = function (keyboard, key) {
-	return (IndexOfData(keyboard, [key,true,false]) != -1);
-};
-var getKeyReleasedState = function (keyboard, key) {
-	return (IndexOfData(keyboard, [key,false,true]) != -1);
-};
-var getKeyState = function (keyboard, key) {
-	return ((IndexOfData(keyboard, [key,false,true]) != -1) || (IndexOfData(keyboard, [key,true,true]) != -1));
-};
+function getKeyPressedState(keyboard, key) {return (IndexOfData(keyboard, [key,true,false]) != -1);}
+function getKeyReleasedState(keyboard, key) {return (IndexOfData(keyboard, [key,false,true]) != -1);}
+function getKeyState(keyboard, key) {return ((IndexOfData(keyboard, [key,false,true]) != -1) || (IndexOfData(keyboard, [key,true,true]) != -1));}
 
-var getBindPressedState = function (bindgrps, keyboard) {
+function getBindPressedState(bindgrps, keyboard) {
 	var state = false;
-	bindgrps.forEach( function (e,i) {
-		if (e.isArray) {
-			// plus bind
-		}else{
-			if (state = getKeyPressedState(keyboard, e)) {
-				return;
+	for(var i = 0; i < bindgrps.length; i++) {
+		if(Array.isArray(bindgrps[i])) {
+			state = true;
+			for(var j = 0; j < bindgrps[i].length; j++) {
+				if(!getKeyPressedState(keyboard, bindgrps[i][j])){state = false; break;}
 			}
 		}
-	});
+		else if(getKeyPressedState(keyboard, bindgrps[i])) {return true;}
+	}
 	return state;
-};
-var getBindReleasedState = function (bindgrps, keyboard) {
+}
+function getBindReleasedState(bindgrps, keyboard) {
 	var state = false;
-	bindgrps.forEach( function (e,i) {
-		if (e.isArray) {
-			// plus bind
-		}else{
-			if (state = getKeyReleasedState(keyboard, e)) {
-				return;
+	for(var i = 0; i < bindgrps.length; i++) {
+		if(Array.isArray(bindgrps[i])) {
+			state = true;
+			for(var j = 0; j < bindgrps[i].length; j++) {
+				if(!getKeyReleasedState(keyboard, bindgrps[i][j])){state = false; break;}
 			}
 		}
-	});
+		else if(getKeyReleasedState(keyboard, bindgrps[i])) {return true;}
+	}
 	return state;
-};
-var getBindState = function (bindgrps, keyboard) {
+}
+function getBindState(bindgrps, keyboard) {
 	var state = false;
-	bindgrps.forEach( function (e,i) {
-		if (e.isArray) {
-			// plus bind
-		}else{
-			if (state = getKeyState(keyboard, e)) {
-				return;
-			}
+	for(var i = 0; i < bindgrps.length; i++) {
+		if(Array.isArray(bindgrps[i])) {
+			state = true;
+			for(var j = 0; j < bindgrps[i].length; j++) {if(!getKeyState(keyboard, bindgrps[i][j])){state = false; break;}}
 		}
-	});
+		else if(getKeyState(keyboard, bindgrps[i])) {return true;}
+	}
 	return state;
-};
+}
 
 var updateControlEvents = function (binds, keyboard) {
 	var newkeys = {
@@ -415,7 +407,7 @@ var Init = function () {
 	//var ftime = 0; // global frame counter for shaders
 	var ControlEvents = [];
 	var binds = {
-		fma: [87, 38],
+		fma: [[67, 70], 38, 87],
 		bma: [83, 40],
 		lma: [65, 37],
 		rma: [68, 39],
